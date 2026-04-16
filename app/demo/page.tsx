@@ -385,10 +385,10 @@ export default function DemoPage() {
             <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 mb-4 text-base text-blue-800 leading-relaxed">
               <p className="font-bold mb-1">Think of it like a library card.</p>
               <p>
-                TechBuddy uses a service called OpenAI to understand your screenshots. You need a free code from them to use it. You only need to do this once — TechBuddy saves it in your browser.
+                TechBuddy uses a service called OpenAI to understand your screenshots. You need your own OpenAI API key to use it. You only need to enter it once — TechBuddy saves it in your browser.
               </p>
               <p className="mt-2">
-                To get your free code, go to{" "}
+                To get your key, go to{" "}
                 <a
                   href="https://platform.openai.com/api-keys"
                   target="_blank"
@@ -397,7 +397,7 @@ export default function DemoPage() {
                 >
                   platform.openai.com/api-keys
                 </a>{" "}
-                and sign up for a free account. Then copy the code and paste it here.
+                and create an account. New accounts include some free credits. After that, each use costs a few cents. Then copy your key and paste it here.
               </p>
             </div>
           )}

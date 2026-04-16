@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -9,6 +9,10 @@ import {
   RotateCcw,
   HelpCircle,
   SendHorizonal,
+  Key,
+  Eye,
+  EyeOff,
+  CheckCircle2,
 } from "lucide-react";
 import ImageUploader from "@/components/ImageUploader";
 import InstructionCard from "@/components/InstructionCard";
@@ -32,6 +36,8 @@ const SAMPLE_QUESTIONS = [
   "What is this warning telling me?",
 ];
 
+const LS_KEY = "techbuddy_openai_key";
+
 export default function DemoPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -39,6 +45,32 @@ export default function DemoPage() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [apiKey, setApiKey] = useState("");
+  const [apiKeySaved, setApiKeySaved] = useState(false);
+  const [showKey, setShowKey] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) {
+      setApiKey(saved);
+      setApiKeySaved(true);
+    }
+  }, []);
+
+  const handleSaveKey = () => {
+    const trimmed = apiKey.trim();
+    if (!trimmed) return;
+    localStorage.setItem(LS_KEY, trimmed);
+    setApiKey(trimmed);
+    setApiKeySaved(true);
+  };
+
+  const handleClearKey = () => {
+    localStorage.removeItem(LS_KEY);
+    setApiKey("");
+    setApiKeySaved(false);
+  };
 
   const handleImageSelect = useCallback((file: File, url: string) => {
     setImageFile(file);
@@ -68,8 +100,15 @@ export default function DemoPage() {
         formData.append("question", question.trim());
       }
 
+      const headers: HeadersInit = {};
+      const storedKey = localStorage.getItem(LS_KEY);
+      if (storedKey) {
+        headers["x-openai-key"] = storedKey;
+      }
+
       const response = await fetch("/api/analyze", {
         method: "POST",
+        headers,
         body: formData,
       });
 
@@ -120,13 +159,75 @@ export default function DemoPage() {
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         {/* Header */}
-        <div className="text-center mb-8 md:mb-12">
+        <div className="text-center mb-8 md:mb-10">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 mb-3">
             Get Help with Any App
           </h1>
           <p className="text-lg md:text-xl text-gray-500 max-w-xl mx-auto font-medium">
             Upload your screenshot and we&apos;ll tell you exactly what to do
           </p>
+        </div>
+
+        {/* API Key Section */}
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-5 md:p-6 mb-6 md:mb-8">
+          <h2 className="text-lg md:text-xl font-black text-gray-800 mb-1 flex items-center gap-2">
+            <Key className="w-5 h-5 text-blue-500" />
+            OpenAI API Key
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Required to analyze screenshots. Get yours free at{" "}
+            <a
+              href="https://platform.openai.com/api-keys"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 underline font-medium"
+            >
+              platform.openai.com/api-keys
+            </a>
+            . Saved only in your browser.
+          </p>
+
+          {apiKeySaved ? (
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-green-50 border-2 border-green-200 text-green-700 px-4 py-2.5 rounded-2xl font-semibold text-sm flex-1">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                API key saved
+              </div>
+              <button
+                onClick={handleClearKey}
+                className="px-4 py-2.5 rounded-2xl border-2 border-gray-200 text-gray-500 hover:border-red-300 hover:text-red-500 text-sm font-semibold transition-colors"
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  type={showKey ? "text" : "password"}
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSaveKey()}
+                  placeholder="sk-proj-..."
+                  className="w-full pr-11 pl-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-blue-400 focus:outline-none rounded-2xl text-base font-mono text-gray-800 placeholder:text-gray-400 transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowKey((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+              <button
+                onClick={handleSaveKey}
+                disabled={!apiKey.trim()}
+                className="px-5 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold rounded-2xl transition-colors text-sm"
+              >
+                Save
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 items-start">
@@ -188,11 +289,11 @@ export default function DemoPage() {
             {/* Analyze Button */}
             <button
               onClick={handleAnalyze}
-              disabled={!imageFile || loading}
+              disabled={!imageFile || loading || !apiKeySaved}
               className={`
                 w-full flex items-center justify-center gap-3 font-black text-xl md:text-2xl py-5 md:py-6 rounded-3xl shadow-xl transition-all
                 ${
-                  imageFile && !loading
+                  imageFile && !loading && apiKeySaved
                     ? "bg-blue-600 hover:bg-blue-700 text-white hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98]"
                     : "bg-gray-200 text-gray-400 cursor-not-allowed"
                 }
@@ -212,18 +313,16 @@ export default function DemoPage() {
               )}
             </button>
 
+            {!apiKeySaved && (
+              <p className="text-center text-sm text-gray-400 font-medium -mt-2">
+                Enter your API key above to get started
+              </p>
+            )}
+
             {/* Error */}
             {error && (
               <div className="bg-red-50 border-2 border-red-200 text-red-700 rounded-2xl p-4 font-semibold text-base">
-                {error.includes("API key") ? (
-                  <span>
-                    API key not configured. Set{" "}
-                    <code className="bg-red-100 px-1 rounded">OPENAI_API_KEY</code>{" "}
-                    in your <code className="bg-red-100 px-1 rounded">.env.local</code> file.
-                  </span>
-                ) : (
-                  error
-                )}
+                {error}
               </div>
             )}
           </div>
@@ -284,7 +383,6 @@ export default function DemoPage() {
                         Our AI is reading every button and menu
                       </p>
                     </div>
-                    {/* Shimmer placeholder */}
                     <div className="w-full space-y-3 mt-4">
                       <div className="h-16 bg-gray-100 rounded-2xl animate-pulse" />
                       <div className="h-10 bg-gray-100 rounded-2xl animate-pulse w-3/4" />

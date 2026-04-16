@@ -1,9 +1,7 @@
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+export const maxDuration = 60; // allow up to 60s for GPT-4o on Vercel
 
 const SYSTEM_PROMPT = `You are TechBuddy, a friendly AI assistant that helps senior citizens and non-tech-savvy users navigate apps and websites.
 
@@ -39,12 +37,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No image provided" }, { status: 400 });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    const apiKey =
+      request.headers.get("x-openai-key") || process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
       return NextResponse.json(
-        { error: "API key not configured" },
-        { status: 500 }
+        { error: "No OpenAI API key provided" },
+        { status: 400 }
       );
     }
+
+    const client = new OpenAI({ apiKey });
 
     const bytes = await imageFile.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");

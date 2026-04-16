@@ -3,11 +3,27 @@
 import { useRef, useCallback, useEffect } from "react";
 import { ImageIcon, X, Camera, ClipboardPaste } from "lucide-react";
 
+export type TapZone =
+  | "top-left" | "top-center" | "top-right"
+  | "middle-left" | "center" | "middle-right"
+  | "bottom-left" | "bottom-center" | "bottom-right";
+
 export interface TapTarget {
-  x: number;  // 0–100, % from left edge of original image
-  y: number;  // 0–100, % from top edge of original image
+  zone: TapZone;
   label: string;
 }
+
+const ZONE_POSITIONS: Record<TapZone, { x: number; y: number }> = {
+  "top-left":      { x: 18, y: 10 },
+  "top-center":    { x: 50, y: 10 },
+  "top-right":     { x: 82, y: 10 },
+  "middle-left":   { x: 18, y: 50 },
+  "center":        { x: 50, y: 50 },
+  "middle-right":  { x: 82, y: 50 },
+  "bottom-left":   { x: 18, y: 88 },
+  "bottom-center": { x: 50, y: 88 },
+  "bottom-right":  { x: 82, y: 88 },
+};
 
 interface ImageUploaderProps {
   onImageSelect: (file: File, previewUrl: string) => void;
@@ -80,12 +96,14 @@ export default function ImageUploader({
         />
 
         {/* Tap highlight overlay */}
-        {tapTarget && (
+        {tapTarget && (() => {
+          const pos = ZONE_POSITIONS[tapTarget.zone] ?? { x: 50, y: 50 };
+          return (
           <div
             className="absolute pointer-events-none z-10 flex flex-col items-center gap-1.5"
             style={{
-              left: `${tapTarget.x}%`,
-              top: `${tapTarget.y}%`,
+              left: `${pos.x}%`,
+              top: `${pos.y}%`,
               transform: "translate(-50%, -50%)",
             }}
           >
@@ -100,7 +118,8 @@ export default function ImageUploader({
               👆 {tapTarget.label}
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {!disabled && (
           <button

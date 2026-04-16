@@ -109,7 +109,7 @@ function inferZoneFromText(text: string): TapTarget | null {
   else if (left)           zone = "middle-left";
   else if (right)          zone = "middle-right";
   else if (mid)            zone = "center";
-  else return null;
+  else zone = "bottom-center";
 
   return { zone, label: "Tap here" };
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
-import { Upload, ImageIcon, X, Camera } from "lucide-react";
+import { useRef, useCallback } from "react";
+import { ImageIcon, X, Camera } from "lucide-react";
 
 interface ImageUploaderProps {
   onImageSelect: (file: File, previewUrl: string) => void;
@@ -17,7 +17,6 @@ export default function ImageUploader({
   disabled = false,
 }: ImageUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
 
   const handleFile = useCallback(
     (file: File) => {
@@ -31,19 +30,11 @@ export default function ImageUploader({
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
-      setIsDragging(false);
       const file = e.dataTransfer.files[0];
       if (file) handleFile(file);
     },
     [handleFile]
   );
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => setIsDragging(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -52,26 +43,26 @@ export default function ImageUploader({
 
   if (previewUrl) {
     return (
-      <div className="relative rounded-3xl overflow-hidden border-4 border-blue-200 shadow-2xl">
+      <div className="relative rounded-3xl overflow-hidden border-4 border-blue-300 shadow-xl">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={previewUrl}
-          alt="Uploaded screenshot"
+          alt="Your screenshot"
           className="w-full max-h-[500px] object-contain bg-gray-900"
         />
         {!disabled && (
           <button
             onClick={onClear}
-            className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 shadow-lg transition-all"
+            className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full p-2.5 shadow-lg transition-all"
             title="Remove image"
           >
             <X className="w-5 h-5" />
           </button>
         )}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-          <p className="text-white text-sm font-semibold flex items-center gap-2">
-            <ImageIcon className="w-4 h-4" />
-            Screenshot loaded — ready to analyze
+          <p className="text-white text-base font-bold flex items-center gap-2">
+            <ImageIcon className="w-5 h-5" />
+            Screenshot ready — good job!
           </p>
         </div>
       </div>
@@ -81,17 +72,7 @@ export default function ImageUploader({
   return (
     <div
       onDrop={handleDrop}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onClick={() => !disabled && fileInputRef.current?.click()}
-      className={`
-        relative border-4 border-dashed rounded-3xl p-10 md:p-16 text-center cursor-pointer transition-all
-        ${isDragging
-          ? "border-blue-500 bg-blue-50 scale-[1.02]"
-          : "border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50"
-        }
-        ${disabled ? "opacity-50 cursor-not-allowed" : ""}
-      `}
+      onDragOver={(e) => e.preventDefault()}
     >
       <input
         ref={fileInputRef}
@@ -101,31 +82,31 @@ export default function ImageUploader({
         className="hidden"
         disabled={disabled}
       />
-      <div className="flex flex-col items-center gap-5">
-        <div
-          className={`w-20 h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center transition-all ${
-            isDragging ? "bg-blue-500 animate-bounce" : "bg-blue-100"
-          }`}
-        >
-          {isDragging ? (
-            <Upload className="w-10 h-10 md:w-12 md:h-12 text-white" />
-          ) : (
-            <Camera className="w-10 h-10 md:w-12 md:h-12 text-blue-500" />
-          )}
+
+      <button
+        type="button"
+        onClick={() => !disabled && fileInputRef.current?.click()}
+        disabled={disabled}
+        className={`
+          w-full flex flex-col items-center gap-5 py-12 md:py-16 px-6 rounded-3xl border-4 border-dashed transition-all
+          ${disabled
+            ? "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"
+            : "border-blue-300 bg-blue-50 hover:bg-blue-100 hover:border-blue-500 active:scale-[0.98] cursor-pointer"
+          }
+        `}
+      >
+        <div className="w-24 h-24 md:w-28 md:h-28 bg-blue-600 rounded-full flex items-center justify-center shadow-lg">
+          <Camera className="w-12 h-12 md:w-14 md:h-14 text-white" />
         </div>
-        <div>
-          <p className="text-2xl md:text-3xl font-black text-gray-800 mb-2">
-            {isDragging ? "Drop it here!" : "Upload Your Screenshot"}
+        <div className="text-center">
+          <p className="text-2xl md:text-3xl font-black text-gray-900 mb-2">
+            Tap Here to Choose Your Screenshot
           </p>
-          <p className="text-base md:text-lg text-gray-500 font-medium">
-            Drag &amp; drop or{" "}
-            <span className="text-blue-600 font-bold underline">tap to browse</span>
-          </p>
-          <p className="text-sm text-gray-400 mt-3">
-            Supports JPG, PNG, WEBP · Any app or website
+          <p className="text-lg md:text-xl text-gray-500 font-medium">
+            Find the screenshot in your photos or files
           </p>
         </div>
-      </div>
+      </button>
     </div>
   );
 }

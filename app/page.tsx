@@ -43,30 +43,6 @@ const features = [
   },
 ];
 
-const testimonials = [
-  {
-    quote:
-      "My grandson set this up for me and now I can do my banking all by myself! The instructions are so clear.",
-    name: "Margaret, 74",
-    avatar: "M",
-    color: "bg-orange-400",
-  },
-  {
-    quote:
-      "I was scared of getting scammed online. TechBuddy warned me about a fake popup immediately.",
-    name: "Robert, 68",
-    avatar: "R",
-    color: "bg-blue-500",
-  },
-  {
-    quote:
-      "The voice feature is wonderful. I just press play and follow the instructions step by step.",
-    name: "Dorothy, 81",
-    avatar: "D",
-    color: "bg-green-500",
-  },
-];
-
 const steps = [
   { num: "1", text: "Take a screenshot of the confusing app screen" },
   { num: "2", text: "Upload it to TechBuddy with one tap" },
@@ -216,42 +192,6 @@ export default function LandingPage() {
                   <p className="text-gray-600 text-sm md:text-base leading-relaxed">
                     {f.description}
                   </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Testimonials */}
-        <section className="py-20 md:py-28 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-14 md:mb-20">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 mb-4">
-                What People Are Saying
-              </h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-              {testimonials.map((t, i) => (
-                <div
-                  key={i}
-                  className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-3xl p-6 md:p-8 border border-gray-100 shadow-md"
-                >
-                  <div className="flex gap-1 mb-5">
-                    {[...Array(5)].map((_, s) => (
-                      <Star key={s} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                    ))}
-                  </div>
-                  <p className="text-gray-700 text-base md:text-lg leading-relaxed mb-6 font-medium italic">
-                    &ldquo;{t.quote}&rdquo;
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-12 h-12 ${t.color} rounded-full flex items-center justify-center text-white font-black text-lg`}
-                    >
-                      {t.avatar}
-                    </div>
-                    <span className="text-gray-800 font-bold text-lg">{t.name}</span>
-                  </div>
                 </div>
               ))}
             </div>

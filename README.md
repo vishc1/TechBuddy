@@ -2,7 +2,7 @@
 
 > **AI-powered screenshot assistant for senior citizens** — Upload any app screenshot and get simple, clear step-by-step instructions.
 
-Built for hackathons. Deployed in minutes. Designed for everyone.
+Designed for seniors. Deployed in minutes. Built for everyone.
 
 ---
 
@@ -132,7 +132,7 @@ The `/api/analyze` endpoint:
 
 ---
 
-## Hackathon Notes
+## Design Notes
 
 - **Demo-first design**: The `/demo` page is the core experience
 - **No auth required**: Anyone can upload a screenshot immediately

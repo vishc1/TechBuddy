@@ -1,11 +1,11 @@
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 
-export const maxDuration = 60; // allow up to 60s for GPT-4o on Vercel
+export const maxDuration = 60;
 
-const SYSTEM_PROMPT = `You are TechBuddy, a friendly AI assistant that helps senior citizens and non-tech-savvy users navigate apps and websites.
+const ANALYSIS_PROMPT = (detailLevel: string) => `You are TechBuddy, a friendly AI assistant that helps senior citizens and non-tech-savvy users navigate apps and websites. Always be encouraging and reassuring. Avoid technical jargon.
 
-When analyzing a screenshot, you must respond in valid JSON with this exact structure:
+When analyzing a screenshot, respond in valid JSON with this exact structure:
 {
   "isScam": boolean,
   "scamWarning": string | null,
@@ -22,20 +22,30 @@ Rules:
 - "appName": the name of the app or website shown (e.g., "Gmail", "Facebook", "Amazon")
 - "currentScreen": a brief description of what screen is shown (e.g., "Inbox", "Login Page")
 - "mainInstruction": one clear, simple sentence telling the user the most important next action (e.g., "Tap the blue Compose button in the top right corner to write a new email.")
-- "steps": array of 2-4 clear, numbered steps using simple language. Start each step with an action word (Tap, Press, Click, Scroll, Look for). Be very specific about location (top left, bottom right, center, etc.)
-- "visibleElements": list of buttons, menus, icons you can see (e.g., ["Compose button (top right)", "Search bar (top)", "Inbox tab (bottom)"])
+- "steps": array of step-by-step instructions. Start each with an action word (Tap, Press, Click, Scroll). Be specific about location (top left, bottom right, center, etc.)
+- "visibleElements": list of buttons, menus, icons you can see (e.g., ["Compose button (top right)", "Search bar (top)"])
 
-CRITICAL: Use extremely simple language suitable for seniors. Avoid jargon. Be encouraging and reassuring. If it's a scam, be very clear and direct about the danger.`;
+${
+  detailLevel === "simple"
+    ? "SIMPLE MODE: Use 2-3 steps maximum. One short sentence per step. Use only the most basic words. Write as if explaining to someone who has never used a smartphone before. No technical terms."
+    : "DETAILED MODE: Use 4-6 steps. Explain what each element does and why. Include what to expect after each step. Add helpful tips for common mistakes. Give more context."
+}
+
+CRITICAL: Use extremely simple language suitable for seniors. Be encouraging and reassuring. If it's a scam, be very clear and direct about the danger.`;
+
+const FOLLOWUP_PROMPT = `You are TechBuddy, a friendly AI assistant helping a senior citizen navigate their phone or computer. You already analyzed a screenshot for them and gave step-by-step instructions. Now they have a follow-up question.
+
+Answer their question clearly and simply. Be warm and encouraging. Keep it short — 2-4 sentences. Use very simple words. If they're confused or frustrated, reassure them that it's okay. Never use technical jargon.`;
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const imageFile = formData.get("image") as File | null;
     const userQuestion = (formData.get("question") as string) || "";
-
-    if (!imageFile) {
-      return NextResponse.json({ error: "No image provided" }, { status: 400 });
-    }
+    const detailLevel = (formData.get("detailLevel") as string) || "simple";
+    const isFollowUp = formData.get("followUp") === "true";
+    const historyRaw = (formData.get("history") as string) || "[]";
+    const contextRaw = (formData.get("context") as string) || "";
 
     const apiKey =
       request.headers.get("x-openai-key") || process.env.OPENAI_API_KEY;
@@ -49,9 +59,43 @@ export async function POST(request: NextRequest) {
 
     const client = new OpenAI({ apiKey });
 
+    if (isFollowUp) {
+      const history = JSON.parse(historyRaw) as Array<{
+        role: "user" | "assistant";
+        content: string;
+      }>;
+
+      const systemContent =
+        FOLLOWUP_PROMPT +
+        (contextRaw ? `\n\nContext from the screenshot you already analyzed: ${contextRaw}` : "");
+
+      const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+        { role: "system", content: systemContent },
+        ...history,
+        { role: "user", content: userQuestion },
+      ];
+
+      const response = await client.chat.completions.create({
+        model: "gpt-4o",
+        max_tokens: 300,
+        messages,
+      });
+
+      const answer =
+        response.choices[0]?.message?.content ??
+        "I'm not sure. Please try asking again.";
+
+      return NextResponse.json({ success: true, data: { message: answer } });
+    }
+
+    // Initial screenshot analysis
+    if (!imageFile) {
+      return NextResponse.json({ error: "No image provided" }, { status: 400 });
+    }
+
     const bytes = await imageFile.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");
-    const mediaType = imageFile.type; // e.g. "image/jpeg"
+    const mediaType = imageFile.type;
 
     const userMessage = userQuestion
       ? `Please analyze this screenshot and help me. My question is: "${userQuestion}"`
@@ -63,7 +107,7 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: "system",
-          content: SYSTEM_PROMPT,
+          content: ANALYSIS_PROMPT(detailLevel),
         },
         {
           role: "user",
@@ -86,7 +130,6 @@ export async function POST(request: NextRequest) {
 
     const rawText = response.choices[0]?.message?.content ?? "";
 
-    // Extract JSON from the response
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error("No JSON found in response");

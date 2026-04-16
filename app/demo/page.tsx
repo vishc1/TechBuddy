@@ -88,6 +88,32 @@ const DEVICE_CHIPS = [
 
 const LS_KEY = "techbuddy_openai_key";
 
+function inferZoneFromText(text: string): TapTarget | null {
+  if (!text) return null;
+  const t = text.toLowerCase();
+  const top    = t.includes("top") || t.includes("upper");
+  const bottom = t.includes("bottom") || t.includes("lower");
+  const left   = t.includes("left");
+  const right  = t.includes("right");
+  const mid    = t.includes("center") || t.includes("middle");
+
+  let zone: TapTarget["zone"];
+  if      (top && left)    zone = "top-left";
+  else if (top && right)   zone = "top-right";
+  else if (top && mid)     zone = "top-center";
+  else if (top)            zone = "top-center";
+  else if (bottom && left) zone = "bottom-left";
+  else if (bottom && right)zone = "bottom-right";
+  else if (bottom && mid)  zone = "bottom-center";
+  else if (bottom)         zone = "bottom-center";
+  else if (left)           zone = "middle-left";
+  else if (right)          zone = "middle-right";
+  else if (mid)            zone = "center";
+  else return null;
+
+  return { zone, label: "Tap here" };
+}
+
 export default function DemoPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -463,7 +489,7 @@ export default function DemoPage() {
                 previewUrl={previewUrl}
                 onClear={handleClear}
                 disabled={loading}
-                tapTarget={result?.tapTarget}
+                tapTarget={result?.tapTarget ?? inferZoneFromText(result?.mainInstruction ?? "")}
               />
             </div>
 

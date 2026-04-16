@@ -1,13 +1,20 @@
 "use client";
 
-import { useRef, useCallback } from "react";
-import { ImageIcon, X, Camera } from "lucide-react";
+import { useRef, useCallback, useEffect } from "react";
+import { ImageIcon, X, Camera, ClipboardPaste } from "lucide-react";
+
+export interface TapTarget {
+  x: number;  // 0–100, % from left edge of original image
+  y: number;  // 0–100, % from top edge of original image
+  label: string;
+}
 
 interface ImageUploaderProps {
   onImageSelect: (file: File, previewUrl: string) => void;
   previewUrl: string | null;
   onClear: () => void;
   disabled?: boolean;
+  tapTarget?: TapTarget | null;
 }
 
 export default function ImageUploader({
@@ -15,8 +22,28 @@ export default function ImageUploader({
   previewUrl,
   onClear,
   disabled = false,
+  tapTarget,
 }: ImageUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Allow pasting a screenshot from clipboard (Ctrl+V / Cmd+V)
+  useEffect(() => {
+    if (disabled) return;
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) handleFile(file);
+          break;
+        }
+      }
+    };
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [disabled]);
 
   const handleFile = useCallback(
     (file: File) => {
@@ -44,25 +71,51 @@ export default function ImageUploader({
   if (previewUrl) {
     return (
       <div className="relative rounded-3xl overflow-hidden border-4 border-blue-300 shadow-xl">
+        {/* Use h-auto (not object-contain) so % coordinates map directly */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={previewUrl}
           alt="Your screenshot"
-          className="w-full max-h-[500px] object-contain bg-gray-900"
+          className="w-full h-auto block"
         />
+
+        {/* Tap highlight overlay */}
+        {tapTarget && (
+          <div
+            className="absolute pointer-events-none z-10 flex flex-col items-center gap-1.5"
+            style={{
+              left: `${tapTarget.x}%`,
+              top: `${tapTarget.y}%`,
+              transform: "translate(-50%, -50%)",
+            }}
+          >
+            {/* Pulsing rings */}
+            <div className="relative flex items-center justify-center">
+              <span className="absolute w-16 h-16 rounded-full bg-yellow-400 opacity-30 animate-ping" />
+              <span className="absolute w-10 h-10 rounded-full bg-yellow-400 opacity-50" />
+              <span className="relative w-6 h-6 rounded-full bg-yellow-400 border-[3px] border-white shadow-xl" />
+            </div>
+            {/* Label pill */}
+            <div className="bg-yellow-400 text-gray-900 font-black text-sm px-3 py-1 rounded-full whitespace-nowrap shadow-lg leading-snug">
+              👆 {tapTarget.label}
+            </div>
+          </div>
+        )}
+
         {!disabled && (
           <button
             onClick={onClear}
-            className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full p-2.5 shadow-lg transition-all"
+            className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full p-2.5 shadow-lg transition-all z-20"
             title="Remove image"
           >
             <X className="w-5 h-5" />
           </button>
         )}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 z-10">
           <p className="text-white text-base font-bold flex items-center gap-2">
             <ImageIcon className="w-5 h-5" />
-            Screenshot ready — good job!
+            {tapTarget ? `Tap the highlighted area ↑` : "Screenshot ready — good job!"}
           </p>
         </div>
       </div>
@@ -105,6 +158,10 @@ export default function ImageUploader({
           <p className="text-lg md:text-xl text-gray-500 font-medium">
             Find the screenshot in your photos or files
           </p>
+          <div className="flex items-center justify-center gap-2 mt-3 text-blue-500 font-semibold text-base">
+            <ClipboardPaste className="w-4 h-4" />
+            Or press Ctrl+V / ⌘+V to paste directly
+          </div>
         </div>
       </button>
     </div>

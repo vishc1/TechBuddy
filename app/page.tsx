@@ -10,6 +10,7 @@ import {
   Smartphone,
   Monitor,
   CheckCircle2,
+  Bot,
 } from "lucide-react";
 
 const features = [
@@ -41,6 +42,13 @@ const features = [
       "TechBuddy automatically warns you if a screenshot looks suspicious or like a scam attempt.",
     color: "bg-red-100 text-red-600",
   },
+  {
+    icon: Bot,
+    title: "AI Buddy Chat",
+    description:
+      "Ask anything — how to send an email, what a word means, or how to use ChatGPT. Your friendly AI is ready to help.",
+    color: "bg-purple-100 text-purple-600",
+  },
 ];
 
 const steps = [
@@ -66,10 +74,23 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center gap-3 md:gap-4">
               <Link
-                href="/demo"
-                className="hidden sm:inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 font-semibold text-sm md:text-base transition-colors"
+                href="/chat"
+                className="hidden md:inline-flex items-center gap-2 text-purple-600 hover:text-purple-800 font-semibold text-sm md:text-base transition-colors"
               >
-                Try Demo
+                <Bot className="w-4 h-4" />
+                AI Chat
+              </Link>
+              <Link
+                href="/learn"
+                className="hidden md:inline-flex items-center gap-2 text-amber-600 hover:text-amber-800 font-semibold text-sm md:text-base transition-colors"
+              >
+                Learn AI
+              </Link>
+              <Link
+                href="/scam"
+                className="hidden md:inline-flex items-center gap-2 text-red-500 hover:text-red-700 font-semibold text-sm md:text-base transition-colors"
+              >
+                Scam Checker
               </Link>
               <Link
                 href="/demo"
@@ -109,7 +130,14 @@ export default function LandingPage() {
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-lg md:text-xl px-8 py-4 md:px-10 md:py-5 rounded-2xl shadow-xl hover:shadow-2xl transition-all"
               >
                 <Camera className="w-6 h-6" />
-                Upload Screenshot Now
+                Upload Screenshot
+              </Link>
+              <Link
+                href="/chat"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-purple-600 hover:bg-purple-700 text-white font-black text-lg md:text-xl px-8 py-4 md:px-10 md:py-5 rounded-2xl shadow-xl hover:shadow-2xl transition-all"
+              >
+                <Bot className="w-6 h-6" />
+                Chat with AI Buddy
               </Link>
               <a
                 href="#how-it-works"
@@ -198,6 +226,52 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Tool cards */}
+        <section className="py-20 md:py-28 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-14">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 mb-4">
+                Three Tools in One Place
+              </h2>
+              <p className="text-lg md:text-xl text-gray-500 max-w-xl mx-auto">
+                Each tool is designed to be used independently — pick whichever you need right now
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+              <Link href="/demo" className="group bg-blue-600 hover:bg-blue-700 rounded-3xl p-8 text-white shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
+                <Camera className="w-12 h-12 mb-5 opacity-90" />
+                <h3 className="text-2xl font-black mb-2">Screenshot Helper</h3>
+                <p className="text-blue-100 text-base leading-relaxed">
+                  Upload any confusing screen and get step-by-step instructions in plain English.
+                </p>
+                <div className="mt-5 flex items-center gap-2 font-bold text-base text-blue-200 group-hover:text-white transition-colors">
+                  Open <ChevronRight className="w-4 h-4" />
+                </div>
+              </Link>
+              <Link href="/chat" className="group bg-purple-600 hover:bg-purple-700 rounded-3xl p-8 text-white shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
+                <Bot className="w-12 h-12 mb-5 opacity-90" />
+                <h3 className="text-2xl font-black mb-2">AI Buddy Chat</h3>
+                <p className="text-purple-100 text-base leading-relaxed">
+                  Ask anything out loud or by typing — tech questions, email help, or just a chat.
+                </p>
+                <div className="mt-5 flex items-center gap-2 font-bold text-base text-purple-200 group-hover:text-white transition-colors">
+                  Open <ChevronRight className="w-4 h-4" />
+                </div>
+              </Link>
+              <Link href="/scam" className="group bg-red-500 hover:bg-red-600 rounded-3xl p-8 text-white shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
+                <Shield className="w-12 h-12 mb-5 opacity-90" />
+                <h3 className="text-2xl font-black mb-2">Scam Checker</h3>
+                <p className="text-red-100 text-base leading-relaxed">
+                  Paste any suspicious text, email, or phone number — we&apos;ll tell you if it&apos;s a scam.
+                </p>
+                <div className="mt-5 flex items-center gap-2 font-bold text-base text-red-200 group-hover:text-white transition-colors">
+                  Open <ChevronRight className="w-4 h-4" />
+                </div>
+              </Link>
+            </div>
+          </div>
+        </section>
+
         {/* CTA */}
         <section className="py-20 md:py-28 bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -205,15 +279,23 @@ export default function LandingPage() {
               Ready to Get Help?
             </h2>
             <p className="text-lg md:text-2xl text-blue-100 mb-10 md:mb-12 max-w-xl mx-auto leading-relaxed">
-              Upload your first screenshot for free. No account required.
+              No account, no setup, no cost. Just open and start.
             </p>
-            <Link
-              href="/demo"
-              className="inline-flex items-center gap-3 bg-white hover:bg-blue-50 text-blue-700 font-black text-xl md:text-2xl px-10 py-5 md:px-14 md:py-6 rounded-2xl shadow-2xl hover:shadow-white/20 transition-all"
-            >
-              <Camera className="w-7 h-7" />
-              Try TechBuddy Free
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                href="/demo"
+                className="inline-flex items-center gap-3 bg-white hover:bg-blue-50 text-blue-700 font-black text-xl md:text-2xl px-10 py-5 rounded-2xl shadow-2xl transition-all"
+              >
+                <Camera className="w-7 h-7" />
+                Screenshot Helper
+              </Link>
+              <Link
+                href="/learn"
+                className="inline-flex items-center gap-3 bg-white/20 hover:bg-white/30 text-white font-bold text-xl md:text-2xl px-10 py-5 rounded-2xl transition-all"
+              >
+                Learn About AI
+              </Link>
+            </div>
           </div>
         </section>
       </main>

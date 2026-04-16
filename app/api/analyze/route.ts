@@ -13,7 +13,9 @@ When analyzing a screenshot, respond in valid JSON with this exact structure:
   "currentScreen": string,
   "mainInstruction": string,
   "steps": string[],
-  "visibleElements": string[]
+  "visibleElements": string[],
+  "techTip": string,
+  "tapTarget": { "x": number, "y": number, "label": string } | null
 }
 
 Rules:
@@ -24,6 +26,8 @@ Rules:
 - "mainInstruction": one clear, simple sentence telling the user the most important next action (e.g., "Tap the blue Compose button in the top right corner to write a new email.")
 - "steps": array of step-by-step instructions. Start each with an action word (Tap, Press, Click, Scroll). Be specific about location (top left, bottom right, center, etc.)
 - "visibleElements": list of buttons, menus, icons you can see (e.g., ["Compose button (top right)", "Search bar (top)"])
+- "tapTarget": the single most important element the user needs to tap or click to complete the mainInstruction. Set "x" and "y" as percentages (0=left/top edge, 100=right/bottom edge) of the original image dimensions indicating where that element is located. Set "label" to a short name for the element (e.g. "Send button", "Menu icon", "Sign In button"). Return null if the action doesn't involve tapping a specific visible element (e.g. "scroll down" or "wait").
+- "techTip": one short, friendly "did you know?" tip that teaches the user something about a specific icon, button color, or UI pattern that is actually visible in this screenshot. It must be tied to something on screen — do not give a generic tip. Examples of good tips: "The red button you see usually means 'close' or 'stop' — red colors in apps are a warning to slow down.", "Those three horizontal lines (☰) at the top-left are called a hamburger menu — tap them to see more pages or settings.", "The lock icon in the address bar tells you the website is secure — it means your information is protected.", "Blue underlined words are called links — tapping them will take you to a new page.", "The gear or cog icon (⚙) always means Settings on any app or device." Keep it to 1-2 sentences. Plain English only. Make it feel like a kind teacher sharing a helpful secret.
 
 ${
   detailLevel === "simple"
@@ -43,6 +47,7 @@ export async function POST(request: NextRequest) {
     const imageFile = formData.get("image") as File | null;
     const userQuestion = (formData.get("question") as string) || "";
     const detailLevel = (formData.get("detailLevel") as string) || "simple";
+    const deviceContext = (formData.get("deviceContext") as string) || "";
     const isFollowUp = formData.get("followUp") === "true";
     const historyRaw = (formData.get("history") as string) || "[]";
     const contextRaw = (formData.get("context") as string) || "";
@@ -97,9 +102,13 @@ export async function POST(request: NextRequest) {
     const base64 = Buffer.from(bytes).toString("base64");
     const mediaType = imageFile.type;
 
+    const deviceNote = deviceContext
+      ? ` The user is on: ${deviceContext}.`
+      : "";
+
     const userMessage = userQuestion
-      ? `Please analyze this screenshot and help me. My question is: "${userQuestion}"`
-      : "Please analyze this screenshot and tell me what to do next.";
+      ? `Please analyze this screenshot and help me.${deviceNote} My question is: "${userQuestion}"`
+      : `Please analyze this screenshot and tell me what to do next.${deviceNote}`;
 
     const response = await client.chat.completions.create({
       model: "gpt-4o",
@@ -107,7 +116,7 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: "system",
-          content: ANALYSIS_PROMPT(detailLevel),
+          content: ANALYSIS_PROMPT(detailLevel) + (deviceContext ? `\n\nThe user has told you they are using: ${deviceContext}. Use the correct terminology for that platform (e.g. "tap" for phones, "click" for computers, exact button/menu names for that app or website).` : ""),
         },
         {
           role: "user",

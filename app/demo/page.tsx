@@ -17,8 +17,15 @@ import {
   Send,
   Zap,
   BookOpen,
+  Monitor,
+  Mic,
+  MicOff,
+  Bot,
+  Clock,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
-import ImageUploader from "@/components/ImageUploader";
+import ImageUploader, { TapTarget } from "@/components/ImageUploader";
 import InstructionCard from "@/components/InstructionCard";
 import ScamWarning from "@/components/ScamWarning";
 import VoiceOutput from "@/components/VoiceOutput";
@@ -31,6 +38,27 @@ interface AnalysisResult {
   mainInstruction: string;
   steps: string[];
   visibleElements: string[];
+  techTip?: string;
+  tapTarget?: TapTarget | null;
+}
+
+interface HistoryEntry {
+  id: string;
+  timestamp: number;
+  appName: string;
+  currentScreen: string;
+  result: AnalysisResult;
+}
+
+const HISTORY_KEY = "techbuddy_history";
+const MAX_HISTORY = 5;
+
+function timeAgo(ts: number): string {
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
 }
 
 interface ChatMessage {
@@ -43,6 +71,19 @@ const SAMPLE_QUESTIONS = [
   "How do I go back to the main screen?",
   "How do I make a payment?",
   "What does this warning mean?",
+];
+
+const DEVICE_CHIPS = [
+  "iPhone",
+  "Android phone",
+  "iPad",
+  "Windows PC",
+  "Mac",
+  "Chrome browser",
+  "Safari",
+  "Gmail",
+  "Facebook",
+  "Amazon",
 ];
 
 const LS_KEY = "techbuddy_openai_key";
@@ -61,10 +102,27 @@ export default function DemoPage() {
   const [showKey, setShowKey] = useState(false);
   const [showKeyHelp, setShowKeyHelp] = useState(false);
 
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<{ stop(): void } | null>(null);
+
+  const [deviceContext, setDeviceContext] = useState("");
+
+  const [largeText, setLargeText] = useState(false);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [followUpInput, setFollowUpInput] = useState("");
   const [followUpLoading, setFollowUpLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const toggleLargeText = () => {
+    setLargeText((v) => {
+      const next = !v;
+      document.documentElement.classList.toggle("large-text", next);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem(LS_KEY);
@@ -72,7 +130,35 @@ export default function DemoPage() {
       setApiKey(saved);
       setApiKeySaved(true);
     }
+
+    const savedHistory = localStorage.getItem(HISTORY_KEY);
+    if (savedHistory) setHistory(JSON.parse(savedHistory));
   }, []);
+
+  const startListening = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rec = new SR() as any;
+    rec.lang = "en-US";
+    rec.interimResults = false;
+    rec.continuous = false;
+    rec.onresult = (e: { results: { [i: number]: { [i: number]: { transcript: string } } } }) => {
+      setQuestion(e.results[0][0].transcript);
+      setListening(false);
+    };
+    rec.onerror = () => setListening(false);
+    rec.onend = () => setListening(false);
+    recognitionRef.current = rec;
+    rec.start();
+    setListening(true);
+  };
+
+  const stopListening = () => {
+    recognitionRef.current?.stop();
+    setListening(false);
+  };
 
   useEffect(() => {
     if (chatMessages.length > 0) {
@@ -108,6 +194,7 @@ export default function DemoPage() {
     setResult(null);
     setError(null);
     setQuestion("");
+    setDeviceContext("");
     setChatMessages([]);
     setFollowUpInput("");
   };
@@ -123,6 +210,7 @@ export default function DemoPage() {
       const formData = new FormData();
       formData.append("image", imageFile);
       if (question.trim()) formData.append("question", question.trim());
+      if (deviceContext.trim()) formData.append("deviceContext", deviceContext.trim());
       formData.append("detailLevel", detailLevel);
 
       const headers: HeadersInit = {};
@@ -142,6 +230,20 @@ export default function DemoPage() {
       }
 
       setResult(json.data);
+
+      // Save to usage history
+      const entry: HistoryEntry = {
+        id: Date.now().toString(),
+        timestamp: Date.now(),
+        appName: json.data.appName || "Unknown app",
+        currentScreen: json.data.currentScreen || "",
+        result: json.data,
+      };
+      setHistory((prev) => {
+        const updated = [entry, ...prev.filter((h) => h.id !== entry.id)].slice(0, MAX_HISTORY);
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+        return updated;
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
       setError(msg);
@@ -210,13 +312,22 @@ export default function DemoPage() {
       <nav className="bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 md:h-20">
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-gray-600 hover:text-blue-600 font-bold text-base md:text-lg transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              <span className="hidden sm:inline">Home</span>
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/"
+                className="flex items-center gap-2 text-gray-600 hover:text-blue-600 font-bold text-base md:text-lg transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                <span className="hidden sm:inline">Home</span>
+              </Link>
+              <Link
+                href="/chat"
+                className="hidden sm:flex items-center gap-1.5 text-purple-600 hover:text-purple-800 font-bold text-sm transition-colors"
+              >
+                <Bot className="w-4 h-4" />
+                AI Chat
+              </Link>
+            </div>
             <div className="flex items-center gap-2">
               <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow">
                 <span className="text-white font-black text-base">T</span>
@@ -225,7 +336,18 @@ export default function DemoPage() {
                 Tech<span className="text-blue-600">Buddy</span>
               </span>
             </div>
-            <div className="w-20" />
+            <button
+              onClick={toggleLargeText}
+              title={largeText ? "Switch to normal text" : "Switch to larger text"}
+              className={`flex items-center gap-1.5 font-black text-sm px-3 py-2 rounded-xl border-2 transition-all ${
+                largeText
+                  ? "border-blue-500 bg-blue-50 text-blue-700"
+                  : "border-gray-200 text-gray-500 hover:border-blue-300 hover:text-blue-600"
+              }`}
+            >
+              <span className="text-base leading-none">A</span>
+              <span className="text-xl leading-none">A</span>
+            </button>
           </div>
         </div>
       </nav>
@@ -341,6 +463,7 @@ export default function DemoPage() {
                 previewUrl={previewUrl}
                 onClear={handleClear}
                 disabled={loading}
+                tapTarget={result?.tapTarget}
               />
             </div>
 
@@ -354,19 +477,36 @@ export default function DemoPage() {
                 <p className="text-base md:text-lg text-gray-500 font-medium mb-4">
                   You can skip this — TechBuddy will figure it out from the screenshot.
                 </p>
-                <div className="relative">
-                  <HelpCircle className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={question}
-                    onChange={(e) => setQuestion(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && imageFile && !loading) handleAnalyze();
-                    }}
-                    placeholder="e.g. How do I send a message?"
-                    className="w-full pl-11 pr-4 py-4 bg-gray-50 border-2 border-gray-200 focus:border-blue-400 focus:outline-none rounded-2xl text-lg font-medium text-gray-800 placeholder:text-gray-400 transition-colors"
+                <div className="relative flex gap-2">
+                  <div className="relative flex-1">
+                    <HelpCircle className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={question}
+                      onChange={(e) => setQuestion(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && imageFile && !loading) handleAnalyze();
+                      }}
+                      placeholder={listening ? "Listening... speak now" : "e.g. How do I send a message?"}
+                      className={`w-full pl-11 pr-4 py-4 bg-gray-50 border-2 focus:outline-none rounded-2xl text-lg font-medium text-gray-800 placeholder:text-gray-400 transition-colors ${
+                        listening ? "border-red-400 bg-red-50 placeholder:text-red-400" : "border-gray-200 focus:border-blue-400"
+                      }`}
+                      disabled={loading}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={listening ? stopListening : startListening}
                     disabled={loading}
-                  />
+                    title={listening ? "Stop listening" : "Speak your question"}
+                    className={`shrink-0 w-14 rounded-2xl flex items-center justify-center transition-all ${
+                      listening
+                        ? "bg-red-500 hover:bg-red-600 text-white animate-pulse"
+                        : "bg-gray-100 hover:bg-blue-100 text-gray-500 hover:text-blue-700"
+                    }`}
+                  >
+                    {listening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+                  </button>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-3">
                   {SAMPLE_QUESTIONS.map((q) => (
@@ -381,10 +521,46 @@ export default function DemoPage() {
                 </div>
               </div>
 
+              {/* Device / Website context */}
+              <div>
+                <h2 className="text-xl md:text-2xl font-black text-gray-900 mb-1 flex items-center gap-2">
+                  <Monitor className="w-6 h-6 text-blue-500 shrink-0" />
+                  3. What are you using? <span className="text-base font-semibold text-gray-400">(optional)</span>
+                </h2>
+                <p className="text-base md:text-lg text-gray-500 font-medium mb-4">
+                  Tell us your device or website so we can give you exact button names.
+                </p>
+                <div className="relative mb-3">
+                  <input
+                    type="text"
+                    value={deviceContext}
+                    onChange={(e) => setDeviceContext(e.target.value)}
+                    placeholder="e.g., iPhone, Windows PC, Gmail, Amazon..."
+                    className="w-full pl-5 pr-4 py-4 bg-gray-50 border-2 border-gray-200 focus:border-blue-400 focus:outline-none rounded-2xl text-lg font-medium text-gray-800 placeholder:text-gray-400 transition-colors"
+                    disabled={loading}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {DEVICE_CHIPS.map((chip) => (
+                    <button
+                      key={chip}
+                      onClick={() => setDeviceContext(chip)}
+                      className={`text-sm md:text-base font-semibold px-4 py-2 rounded-full transition-colors ${
+                        deviceContext === chip
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 hover:bg-blue-100 hover:text-blue-700 text-gray-600"
+                      }`}
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Detail Level */}
               <div>
                 <h2 className="text-xl md:text-2xl font-black text-gray-900 mb-1">
-                  3. How much explanation do you want?
+                  4. How much explanation do you want?
                 </h2>
                 <p className="text-base md:text-lg text-gray-500 font-medium mb-4">
                   Most people prefer Simple.
@@ -464,6 +640,52 @@ export default function DemoPage() {
             {error && (
               <div className="bg-red-50 border-2 border-red-200 text-red-700 rounded-2xl p-5 font-semibold text-base leading-relaxed">
                 Something went wrong: {error}
+              </div>
+            )}
+
+            {/* Usage History */}
+            {history.length > 0 && (
+              <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+                <button
+                  onClick={() => setHistoryOpen((v) => !v)}
+                  className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors"
+                >
+                  <span className="flex items-center gap-2 font-black text-gray-700 text-base md:text-lg">
+                    <Clock className="w-5 h-5 text-blue-500" />
+                    Recent Help
+                    <span className="bg-blue-100 text-blue-700 text-sm font-bold px-2 py-0.5 rounded-full">
+                      {history.length}
+                    </span>
+                  </span>
+                  {historyOpen
+                    ? <ChevronUp className="w-5 h-5 text-gray-400" />
+                    : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                </button>
+
+                {historyOpen && (
+                  <div className="border-t border-gray-100 divide-y divide-gray-50">
+                    {history.map((entry) => (
+                      <button
+                        key={entry.id}
+                        onClick={() => setResult(entry.result)}
+                        className="w-full flex items-center justify-between px-6 py-4 hover:bg-blue-50 transition-colors text-left group"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-gray-800 text-base truncate group-hover:text-blue-700 transition-colors">
+                            {entry.appName}
+                            {entry.currentScreen ? ` — ${entry.currentScreen}` : ""}
+                          </p>
+                          <p className="text-sm text-gray-400 font-medium mt-0.5 truncate">
+                            {entry.result.mainInstruction}
+                          </p>
+                        </div>
+                        <span className="shrink-0 ml-3 text-xs font-semibold text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+                          {timeAgo(entry.timestamp)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -23,6 +23,16 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+html.large-text {
+  font-size: 20px;
+}
+
+@media print {
+  nav, button, .no-print { display: none !important; }
+  body { background: white !important; }
+  .print-only { display: block !important; }
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-8px); }

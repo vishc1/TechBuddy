@@ -97,7 +97,7 @@ export default function ImageUploader({
 
         {/* Tap highlight overlay */}
         {tapTarget && (() => {
-          const pos = ZONE_POSITIONS["bottom-center"];
+          const pos = ZONE_POSITIONS[tapTarget.zone] ?? ZONE_POSITIONS["bottom-center"];
           return (
           <div
             className="absolute pointer-events-none z-10 flex flex-col items-center gap-1.5"

@@ -1,5 +1,11 @@
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  COOKIE_NAME,
+  parseTokenCookie,
+  makeTokenCookie,
+  isOverLimit,
+} from "@/lib/sessionTokens";
 
 export const maxDuration = 60;
 
@@ -21,11 +27,23 @@ export async function POST(request: NextRequest) {
       history: Array<{ role: "user" | "assistant"; content: string }>;
     };
 
-    const apiKey =
-      request.headers.get("x-openai-key") || process.env.OPENAI_API_KEY;
+    const userKey = request.headers.get("x-openai-key");
+    const apiKey = userKey || process.env.OPENAI_API_KEY;
+    const usingServerKey = !userKey;
 
     if (!apiKey) {
       return NextResponse.json({ error: "No API key provided" }, { status: 400 });
+    }
+
+    // Enforce session token limit only when using the server key
+    const cookieValue = request.cookies.get(COOKIE_NAME)?.value ?? null;
+    const session = parseTokenCookie(cookieValue);
+
+    if (usingServerKey && isOverLimit(session.tokens)) {
+      return NextResponse.json(
+        { error: "I'm a little tired right now. Please try again later!" },
+        { status: 429 }
+      );
     }
 
     const client = new OpenAI({ apiKey });
@@ -43,7 +61,21 @@ export async function POST(request: NextRequest) {
     });
 
     const reply = response.choices[0]?.message?.content ?? "I'm not sure — could you ask that a different way?";
-    return NextResponse.json({ success: true, message: reply });
+
+    const res = NextResponse.json({ success: true, message: reply });
+
+    if (usingServerKey) {
+      const tokensUsed = response.usage?.total_tokens ?? 0;
+      const newTotal = session.tokens + tokensUsed;
+      res.cookies.set(COOKIE_NAME, makeTokenCookie(newTotal, session.createdAt), {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24, // 24h
+      });
+    }
+
+    return res;
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: msg }, { status: 500 });
